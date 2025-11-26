@@ -1,0 +1,610 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>性格卡牌摆牌</title>
+  <style>
+    :root {
+      --red: #fde2e2;
+      --blue: #e0f0ff;
+      --yellow: #fff9db;
+      --green: #e5f9e7;
+      --border: #d8d8d8;
+      --text: #243b53;
+      --muted: #6b7b8c;
+      --bg: #f6f8fb;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      letter-spacing: 0.3px;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 16px;
+      max-width: 1300px;
+      margin: 0 auto;
+      align-items: start;
+    }
+    .main {
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      gap: 16px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .actions { display: flex; gap: 10px; }
+
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      color: var(--text);
+      font-weight: 600;
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+    }
+
+    button:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    button:active { transform: translateY(1px); }
+    button:disabled { cursor: not-allowed; opacity: 0.6; }
+
+    .grid {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.03);
+    }
+
+    .score-box {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text);
+      line-height: 1.6;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+      font-size: 14px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 14px;
+    }
+
+    .slot {
+      position: relative;
+      border: 2px dashed #c8d0d8;
+      border-radius: 12px;
+      min-height: 140px;
+      background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 8px, #f1f5f9 8px, #f1f5f9 16px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      text-align: center;
+      padding: 10px;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .slot.filled { border-style: solid; background: transparent; padding: 0; }
+    .slot.hovered { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
+
+    .card {
+      width: 100%;
+      min-height: 120px;
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.05);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 6px;
+      color: #1f2937;
+      cursor: grab;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      background: #fff;
+    }
+    .card.image-only {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      border: none;
+      box-shadow: none;
+      background: transparent;
+      grid-template-rows: 1fr;
+    }
+
+    .card-img {
+      width: 100%;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+    .slot-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+      border: none;
+    }
+
+    .card.dragging { opacity: 0.85; transform: scale(1.02); box-shadow: 0 12px 24px rgba(0,0,0,0.12); }
+
+    .card .title { font-size: 17px; font-weight: 700; }
+    .card .english { font-size: 13px; color: #374151; letter-spacing: 0.2px; }
+    .card .meta { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #4b5563; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,0.06);
+      background: rgba(255,255,255,0.8);
+    }
+
+    .color-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    .deck-panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.03);
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      position: sticky;
+      top: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .deck-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .deck-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0;
+      background: #fdfdff;
+      display: flex;
+      align-items: stretch;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .deck-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+    .deck-card.used { display: none; }
+    .deck-side { position: absolute; top: 8px; left: 8px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.9); font-size: 12px; color: #1f2937; }
+    .deck-img { width: 100%; height: 140px; object-fit: cover; }
+
+    .instructions {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    }
+
+    @media (max-width: 900px) {
+      body { padding: 16px; }
+      .slot-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="deck-panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h2 style="margin:0;font-size:18px;">卡组（左侧滚动）</h2>
+        <span style="font-size:12px;color:var(--muted);">点击切面 · 拖入右侧</span>
+      </div>
+      <div class="deck-grid" id="deckGrid"></div>
+    </aside>
+
+    <div class="main">
+      <div class="toolbar">
+        <div>
+          <h1>卡牌摆放区</h1>
+          <div class="instructions" style="margin:0;">提示：左侧卡牌点击可切换正/反面，拖入右侧空位；上方卡牌可点击切换正/反面、拖拽交换或移到空位。</div>
+        </div>
+        <div class="actions">
+          <button id="calcBtn">算牌</button>
+          <button id="resetBtn">重置</button>
+          <button id="exportBtn">导出当前布局</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="slot-grid" id="slotGrid"></div>
+      </div>
+
+      <div class="instructions">
+        步骤：1）左侧卡牌点击切换正/反面 2）将未使用卡牌拖到右侧空位 3）右侧卡牌点击可切换正/反面，拖拽可交换或移动到空位 4）导出查看当前布局 JSON。
+      </div>
+
+      <div class="score-box" id="scoreBox">
+        当前未计算，点击“算牌”查看各色得分。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const cards = [
+      {
+        id: "card_01",
+        front: { title: "悲观", english: "Frustrated", value: 3, color: "blue" },
+        back: { title: "乐观", english: "Optimistic", value: 1, color: "red" }
+      },
+      {
+        id: "card_02",
+        front: { title: "他人认可最重要", english: "Humans are the most important", value: 2, color: "red" },
+        back: { title: "事情结果最重要", english: "Result is the most important", value: 2, color: "yellow" }
+      },
+      {
+        id: "card_03",
+        front: { title: "主动帮助他人", english: "Always trying to help others", value: 2, color: "red" },
+        back: { title: "静待问题过去", english: "Waiting for things to go away", value: 2, color: "green" }
+      },
+      {
+        id: "card_04",
+        front: { title: "条理", english: "Organized", value: 1, color: "blue" },
+        back: { title: "随意", english: "Random", value: 3, color: "red" }
+      },
+      {
+        id: "card_05",
+        front: { title: "以他人为中心", english: "Others-centered", value: 1, color: "green" },
+        back: { title: "以自我为中心", english: "Self-centered", value: 3, color: "yellow" }
+      },
+      {
+        id: "card_06",
+        front: { title: "越挫越勇", english: "What doesn't kill one makes one stronger", value: 1, color: "yellow" },
+        back: { title: "逆来顺受", english: "Conservative and hold back", value: 3, color: "green" }
+      },
+      {
+        id: "card_07",
+        front: { title: "目标坚定", english: "Determined", value: 1, color: "yellow" },
+        back: { title: "缺乏主见", english: "Hold back", value: 3, color: "green" }
+      },
+      {
+        id: "card_08",
+        front: { title: "批判性强", english: "Critical", value: 3, color: "yellow" },
+        back: { title: "平和宽容", english: "Peaceful and tolerant", value: 1, color: "green" }
+      },
+      {
+        id: "card_09",
+        front: { title: "发现问题先研究", english: "Study first when there is a problem", value: 2, color: "blue" },
+        back: { title: "发现问题先解决", english: "Act immediately once there is a problem", value: 2, color: "yellow" }
+      },
+      {
+        id: "card_10",
+        front: { title: "情绪化", english: "Emotional", value: 3, color: "red" },
+        back: { title: "自律", english: "Self-discipline", value: 1, color: "blue" }
+      },
+      {
+        id: "card_11",
+        front: { title: "内心保守", english: "Conservative", value: 3, color: "blue" },
+        back: { title: "乐于分享", english: "Enjoy sharing", value: 1, color: "red" }
+      },
+      {
+        id: "card_12",
+        front: { title: "相安无事最重要", english: "Waiting for things to go away", value: 2, color: "green" },
+        back: { title: "坚持原则最重要", english: "Sticking to the principles is the most important", value: 2, color: "blue" }
+      }
+    ];
+
+    const colorMap = {
+      red: 'var(--red)',
+      blue: 'var(--blue)',
+      yellow: 'var(--yellow)',
+      green: 'var(--green)'
+    };
+    const imageBase = 'public';
+
+    const cardMap = cards.reduce((acc, card) => {
+      acc[card.id] = card;
+      return acc;
+    }, {});
+
+    const imageForTitle = (title) => `${imageBase}/${encodeURIComponent(title)}.png`;
+
+    function getFace(card, side) {
+      const face = card[side];
+      return { ...face, image: imageForTitle(face.title) };
+    }
+
+    const state = {
+      slots: Array(12).fill(null),
+      used: new Set(),
+      deckFace: cards.reduce((acc, card) => {
+        acc[card.id] = 'front';
+        return acc;
+      }, {})
+    };
+
+    const elements = {
+      slotGrid: document.getElementById('slotGrid'),
+      deckGrid: document.getElementById('deckGrid'),
+      scoreBox: document.getElementById('scoreBox'),
+      resetBtn: document.getElementById('resetBtn'),
+      calcBtn: document.getElementById('calcBtn'),
+      exportBtn: document.getElementById('exportBtn')
+    };
+
+    let dragSourceIndex = null;
+    let dragPayload = null; // { type: 'deck'|'slot', card?, index? }
+
+    function createCardNode(cardData, imageOnly = false) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'card' + (imageOnly ? ' image-only' : '');
+      wrapper.draggable = true;
+      wrapper.style.background = imageOnly ? 'transparent' : (colorMap[cardData.color] || '#fff');
+      if (imageOnly) {
+        wrapper.innerHTML = `${cardData.image ? `<img class="slot-img" src="${cardData.image}" alt="${cardData.title}">` : ''}`;
+      } else {
+        wrapper.innerHTML = `
+          ${cardData.image ? `<img class="card-img" src="${cardData.image}" alt="${cardData.title}">` : ''}
+          <div class="title">${cardData.title}</div>
+          <div class="english">${cardData.english}</div>
+          <div class="meta">
+            <span class="pill"><span class="color-dot" style="background:${cardData.color}"></span>${cardData.color}</span>
+            <span class="pill">value: ${cardData.value}</span>
+          </div>
+        `;
+      }
+      return wrapper;
+    }
+
+    function renderSlots() {
+      elements.slotGrid.innerHTML = '';
+      state.slots.forEach((slot, idx) => {
+        const cell = document.createElement('div');
+        cell.className = 'slot' + (slot ? ' filled' : '');
+        cell.dataset.index = idx;
+        cell.textContent = slot ? '' : '空位';
+        if (slot) {
+          const cardNode = createCardNode(slot, true);
+          cardNode.addEventListener('dragstart', handleDragStart(idx));
+          cardNode.addEventListener('dragend', handleDragEnd);
+          cell.appendChild(cardNode);
+        }
+        cell.addEventListener('click', () => handleSlotClick(idx));
+        cell.addEventListener('dragover', handleDragOver(idx));
+        cell.addEventListener('dragleave', handleDragLeave);
+        cell.addEventListener('drop', handleDrop(idx));
+        elements.slotGrid.appendChild(cell);
+      });
+    }
+
+    function calculateScores() {
+      const scores = { red: 0, blue: 0, yellow: 0, green: 0 };
+      state.slots.forEach((slot, idx) => {
+        if (!slot) return;
+        const row = Math.floor(idx / 4); // 0,1,2
+        const bonus = row === 0 ? 2 : row === 1 ? 1 : 0;
+        scores[slot.color] += Number(slot.value || 0) + bonus;
+      });
+      return scores;
+    }
+
+    function getLabel(score) {
+      if (score > 17) return '超级';
+      if (score > 10 && score < 17) return '明显';
+      return '一般';
+    }
+
+    function renderScores() {
+      const scores = calculateScores();
+      const lines = Object.entries(scores).map(([color, score]) => `${color}: ${score}（${getLabel(score)}）`);
+      elements.scoreBox.textContent = lines.join(' | ');
+    }
+
+    function renderDeck() {
+      elements.deckGrid.innerHTML = '';
+      let shown = 0;
+      cards.forEach(card => {
+        const used = state.used.has(card.id);
+        if (used) return; // 已用卡不再显示
+        const item = document.createElement('div');
+        item.className = 'deck-card';
+        const side = state.deckFace[card.id];
+        const face = getFace(card, side);
+        item.innerHTML = `
+          <span class="deck-side">${side === 'front' ? '正' : '反'}</span>
+          <img class="deck-img" src="${face.image}" alt="${face.title}">
+        `;
+        item.draggable = true;
+        item.addEventListener('click', () => toggleDeckFace(card.id));
+        item.addEventListener('dragstart', handleDeckDragStart(card));
+        item.addEventListener('dragend', handleDragEnd);
+        elements.deckGrid.appendChild(item);
+        shown++;
+      });
+      if (shown === 0) {
+        const empty = document.createElement('div');
+        empty.style.color = 'var(--muted)';
+        empty.style.fontSize = '13px';
+        empty.textContent = '已全部放置';
+        elements.deckGrid.appendChild(empty);
+      }
+    }
+
+    function toggleDeckFace(cardId) {
+      if (state.used.has(cardId)) return;
+      state.deckFace[cardId] = state.deckFace[cardId] === 'front' ? 'back' : 'front';
+      renderDeck();
+    }
+
+    function handleDeckDragStart(card) {
+      return function (event) {
+        if (state.used.has(card.id)) return;
+        const side = state.deckFace[card.id];
+        const face = getFace(card, side);
+        dragPayload = {
+          type: 'deck',
+          card: {
+            cardId: card.id,
+            side,
+            title: face.title,
+            english: face.english,
+            value: face.value,
+            color: face.color,
+            image: face.image
+          }
+        };
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('text/plain', 'deck'); // required for Firefox
+        requestAnimationFrame(() => {
+          event.target.classList.add('dragging');
+        });
+      };
+    }
+
+    function handleDragStart(idx) {
+      return function (event) {
+        dragSourceIndex = idx;
+        dragPayload = { type: 'slot', index: idx };
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', 'slot');
+        requestAnimationFrame(() => {
+          event.target.classList.add('dragging');
+        });
+      };
+    }
+
+    function handleDragEnd(event) {
+      dragSourceIndex = null;
+      dragPayload = null;
+      event.target.classList.remove('dragging');
+      document.querySelectorAll('.slot').forEach(slot => slot.classList.remove('hovered'));
+    }
+
+    function handleDragOver(targetIdx) {
+      return function (event) {
+        if (!dragPayload) return;
+        if (dragPayload.type === 'deck' && state.slots[targetIdx]) return;
+        event.preventDefault();
+        event.currentTarget.classList.add('hovered');
+        event.dataTransfer.dropEffect = dragPayload.type === 'deck' ? 'copy' : 'move';
+      };
+    }
+
+    function handleDragLeave(event) {
+      event.currentTarget.classList.remove('hovered');
+    }
+
+    function handleDrop(targetIdx) {
+      return function (event) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('hovered');
+        if (!dragPayload) return;
+
+        if (dragPayload.type === 'slot') {
+          if (dragSourceIndex === null || dragSourceIndex === targetIdx) return;
+          const sourceCard = state.slots[dragSourceIndex];
+          const targetCard = state.slots[targetIdx];
+          state.slots[targetIdx] = sourceCard ? { ...sourceCard, slotIndex: targetIdx } : null;
+          state.slots[dragSourceIndex] = targetCard ? { ...targetCard, slotIndex: dragSourceIndex } : null;
+          renderSlots();
+        } else if (dragPayload.type === 'deck') {
+          if (state.slots[targetIdx]) return;
+          const card = dragPayload.card;
+          state.slots[targetIdx] = { ...card, slotIndex: targetIdx };
+          state.used.add(card.cardId);
+          renderSlots();
+          renderDeck();
+        }
+      };
+    }
+
+    // 点击上方卡牌即可在正面/反面之间切换展示
+    function handleSlotClick(idx) {
+      const slot = state.slots[idx];
+      if (!slot) return;
+      const cardDef = cardMap[slot.cardId];
+      if (!cardDef) return;
+      const nextSide = slot.side === 'front' ? 'back' : 'front';
+      const face = getFace(cardDef, nextSide);
+      state.slots[idx] = {
+        ...slot,
+        side: nextSide,
+        title: face.title,
+        english: face.english,
+        value: face.value,
+        color: face.color,
+        image: face.image
+      };
+      renderSlots();
+    }
+
+    function resetBoard() {
+      state.slots = Array(12).fill(null);
+      state.used = new Set();
+      state.deckFace = cards.reduce((acc, card) => { acc[card.id] = 'front'; return acc; }, {});
+      renderSlots();
+      renderDeck();
+      elements.scoreBox.textContent = '当前未计算，点击“算牌”查看各色得分。';
+    }
+
+    function exportLayout() {
+      const layout = state.slots.map((slot, idx) => {
+        if (!slot) return null;
+        return {
+          cardId: slot.cardId,
+          side: slot.side,
+          title: slot.title,
+          english: slot.english,
+          value: slot.value,
+          color: slot.color,
+          slotIndex: idx
+        };
+      });
+      console.log('当前布局：', layout);
+      alert('已导出布局到控制台');
+    }
+
+    function init() {
+      renderSlots();
+      renderDeck();
+      elements.resetBtn.addEventListener('click', resetBoard);
+      elements.exportBtn.addEventListener('click', exportLayout);
+      elements.calcBtn.addEventListener('click', renderScores);
+    }
+
+    init();
+  </script>
+</body>
+</html>
